@@ -20,6 +20,8 @@ package org.apache.syncope.core.persistence.jpa.dao;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import org.apache.syncope.core.persistence.api.dao.AnySearchDAO;
@@ -160,14 +162,21 @@ public class JPADynRealmDAO extends AbstractDAO<DynRealm> implements DynRealmDAO
     @Transactional
     @Override
     public void refreshDynMemberships(final Any<?> any) {
-        findAll().forEach(dynRealm -> dynRealm.getDynMembership(any.getType()).ifPresent(memb -> {
+        List<DynRealm> dynRealms = findAll();
+        if(dynRealms.isEmpty()){
+            return;
+        }
+
+        TypedQuery<String> find = entityManager().createQuery(
+                "SELECT dynRealm_id FROM " + DYNMEMB_TABLE + " WHERE any_id=?", String.class)
+                .setParameter(1, any.getKey());
+        Set<String> anyMembership = find.getResultStream().collect(Collectors.toSet());
+
+        dynRealms.forEach(dynRealm -> dynRealm.getDynMembership(any.getType()).ifPresent(memb -> {
             boolean matches = anyMatchDAO.matches(
                     any, SearchCondConverter.convert(searchCondVisitor, memb.getFIQLCond()));
 
-            Query find = entityManager().createNativeQuery(
-                    "SELECT dynRealm_id FROM " + DYNMEMB_TABLE + " WHERE any_id=?");
-            find.setParameter(1, any.getKey());
-            boolean existing = !find.getResultList().isEmpty();
+            boolean existing = anyMembership.contains(dynRealm.getKey());
 
             if (matches && !existing) {
                 Query insert = entityManager().

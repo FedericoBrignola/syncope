@@ -163,7 +163,7 @@ public class JPADynRealmDAO extends AbstractDAO<DynRealm> implements DynRealmDAO
     @Override
     public void refreshDynMemberships(final Any<?> any) {
         List<DynRealm> dynRealms = findAll();
-        if(dynRealms.isEmpty()){
+        if (dynRealms.isEmpty()) {
             return;
         }
 
